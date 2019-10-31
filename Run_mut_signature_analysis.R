@@ -2,7 +2,7 @@
 #Please copy this script and then change the paths, to the data you wish to analyze
 #You will need to change some settings based on your data / research question.
 #Settings that may need to be changed are indicated in the comments with: CHANGE
-#v0.9.0
+#v0.10.0
 
 # -._    _.--'"`'--._    _.--'"`'--._    _.--'"`'--._    
 # '-:`.'|`|"':-.  '-:`.'|`|"':-.  '-:`.'|`|"':-.  '.` :   
@@ -21,7 +21,7 @@ library(pracma)
 library(vegan)
 library(ggdendro)
 library(cowplot)
-source("~/surfdrive/Shared/Boxtel_General/Scripts/pmc_vanboxtel/Freek_misc/Better_refitting.R")
+source("~/surfdrive/Shared/Boxtel_General/Scripts/pmc_vanboxtel/Freek_misc/Run_mut_signature_analysis/Better_refitting.R")
 
 
 # Reading in data ---------------------------------------------------------
@@ -53,6 +53,9 @@ grl = remove_indels(grl) #Remove any indels you might have in your data.
 cosmic_sig_fname = "~/surfdrive/Shared/Boxtel_General/Data/Sigs/SBS/sigProfiler_SBS_working_signatures_incl_hspc.txt"
 signatures = read.table(cosmic_sig_fname, sep = "\t", header = T)
 signatures = as.matrix(signatures[,-c(1,2)])
+
+signatures_serena = read.table("~/surfdrive/Shared/Boxtel_General/Data/Sigs/SBS/Mutagen53_sub_signature.txt", header = T, sep = "\t")
+signatures_serena = as.matrix(signatures_serena[,-c(1,2)])
 
 #Read in the existing mutation matrix for nmf
 mut_matrix_existing_fname = "~/surfdrive/Shared/Boxtel_General/Data/MutationMatrix/NMF_matrix.txt"
@@ -176,10 +179,21 @@ cos_sim_samples_signatures = cos_sim_matrix(mut_mat, signatures)
 sig_cosim_heat_fig = plot_cosine_heatmap(cos_sim_samples_signatures, cluster_rows = F, col_order = sig_order)
 sig_cosim_heat_fig = plot_grid(sig_dendrogram, sig_cosim_heat_fig, align = "v", rel_heights = c(0.2, 1), axis = "lr", nrow = 2, scale = c(1.062,1))
 
+clust = dist(t(signatures_serena)) %>% hclust()
+sig_order = colnames(signatures_serena)[clust$order]
+dhc = as.dendrogram(clust)
+ddata = dendro_data(dhc, type = "rectangle")
+sig_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
+    theme_dendro()
+cos_sim_samples_signatures_serena = cos_sim_matrix(mut_mat, signatures_serena)
+serena_sig_cosim_heat_fig = plot_cosine_heatmap(cos_sim_samples_signatures_serena, cluster_rows = F, col_order = sig_order)
+serena_sig_cosim_heat_fig = plot_grid(sig_dendrogram, serena_sig_cosim_heat_fig, align = "v", rel_heights = c(0.2, 1), axis = "lr", nrow = 2, scale = c(1.062,1))
+
 inner_cosheat_fig = plot_inner_cosheat(mut_mat)
 
 pdf("similarity_signatures.pdf", useDingbats = F)
 print(sig_cosim_heat_fig)
+print(serena_sig_cosim_heat_fig)
 print(inner_cosheat_fig)
 dev.off()
 
@@ -187,6 +201,15 @@ dev.off()
 #Get signatures that will be used for refitting. (If a signature similar to SBS1 is found in the NMF, then SBS1 is used not the similar signature)
 nmf_signatures = nmf_res$signatures
 new_signatures = nmf_signatures[,!colnames(nmf_signatures) %in% colnames(signatures), drop = F]
+new_signatures = prop.table(new_signatures, 2)
+
+if (ncol(new_signatures) > 0){
+    new_sigs_fig = plot_96_sigs(new_signatures)
+    pdf("new_signatures.pdf", useDingbats = F)
+    print(new_sigs_fig)
+    dev.off()
+}
+
 old_signatures = signatures[,colnames(signatures) %in% colnames(nmf_signatures), drop = F]
 signatures = cbind(old_signatures, new_signatures)
 
