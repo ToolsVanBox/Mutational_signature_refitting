@@ -76,7 +76,7 @@ write.table(mut_mat, "pooled_mut_matrix.txt", sep = "\t", quote = F, col.names =
 
 # NMF ---------------------------------------------------------------------
 #Add existing data for NMF.
-mut_mat_nmf = cbind(mut_mat, mut_mat_existing)
+mut_mat_nmf = cbind(mut_mat, mut_mat_existing) + 0.0001
 
 #Create plots showing how many signatures you should generate with nmf. This takes a long time.
 estimate = nmf(mut_mat_nmf, rank=2:7, method="brunet", nrun=10, seed=123456)
@@ -88,9 +88,11 @@ estimate_fig
 dev.off()
 
 #The rank is the number of de novo signatures that nmf will generate. Set it based on the estimate plots.
-#If there is an 'elbow' in these plots, this is what your rank should be.
+#If there is an 'elbow' in these plots, this is what your rank should be. It can be usefull to try out multiple values and see what works best.
+#The mut_mat_existing data will generally result in the inclusion of signatures: SBS1, SBS5, SBS18 and HSPC.
+#Using rank 5 will include a 5th often novel signature.
 ###CHANGE this based on the plots. DO NOT just use the default value###
-rank_nmf = 4
+rank_nmf = 5
 nmf_res = extract_signatures(mut_mat_nmf, rank = rank_nmf, nrun = 10)
 
 

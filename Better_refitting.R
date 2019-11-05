@@ -824,7 +824,7 @@ fit_to_signatures_bootstrapped = function(mut_mat, signatures, n_boots = 1000, m
 #Function to pool samples from a mutation matrix
 pool_mut_mat = function(mut_mat, grouping){
   grouping = factor(grouping)
-  mut_mat_group = mut_mat %>% t(.) %>% as_tibble() %>% dplyr::mutate(factor = grouping) %>% group_by(factor) %>% summarise_all(list(~sum)) %>% dplyr::select(-factor) %>% t(.)
+  mut_mat_group = mut_mat %>% t(.) %>% as_tibble() %>% dplyr::mutate(factor = grouping) %>% group_by(factor) %>% summarise_all(sum) %>% dplyr::select(-factor) %>% t(.)
   colnames(mut_mat_group) = levels(grouping)
   return(mut_mat_group)
 }
