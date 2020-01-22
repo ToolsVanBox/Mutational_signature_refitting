@@ -169,7 +169,6 @@ print(contri_heat_fig)
 print(orivsrec_fig)
 dev.off()
 
-
 # Plot the similarity of the mut_mat with existing signatures -----------------------------
 clust = dist(t(signatures)) %>% hclust()
 sig_order = colnames(signatures)[clust$order]
@@ -210,6 +209,8 @@ if (ncol(new_signatures) > 0){
     pdf("new_signatures.pdf", useDingbats = F)
     print(new_sigs_fig)
     dev.off()
+    
+    write.table(new_signatures, "new_signatures.txt", sep = "\t", quote = F, col.names = T, row.names = F)
 }
 
 old_signatures = signatures[,colnames(signatures) %in% colnames(nmf_signatures), drop = F]

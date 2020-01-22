@@ -3,6 +3,8 @@ library(magrittr)
 library(MutationalPatterns)
 library(pracma)
 library(vegan)
+library(ggdendro)
+library(cowplot)
 
 #Slightly modifief from MutationalPatterns to plot contribution of normalized (colSum 1) signatures
 plot_contribution_nonmf = function (contribution, index = c(), coord_flip = FALSE, 
@@ -50,7 +52,7 @@ plot_contribution_nonmf = function (contribution, index = c(), coord_flip = FALS
 }
 
 #Function to plot the cosine similarities between samples or between signatures themselves.
-plot_inner_cosheat = function(mat){
+plot_inner_cosheat = function(mat, text = T){
   cos_sim_matrix = cos_sim_matrix(mat, mat)
   
   clust = as.dist(1-cos_sim_matrix) %>% hclust()
@@ -71,15 +73,23 @@ plot_inner_cosheat = function(mat){
   y = NULL
   xend = NULL
   yend = NULL
+  
+  if (text == T){
+    geom_manual = geom_text(aes(label = round(Cosine.sim, 2)), colour = "white")
+  } else{
+    geom_manual = geom_blank()
+  }
+  
   cos_sim_matrix.m = cos_sim_matrix %>% as.data.frame() %>% rownames_to_column("Sample") %>% gather(-Sample, key = "Sample2", value = "Cosine.sim")
   cos_sim_matrix.m$Sample2 = factor(cos_sim_matrix.m$Sample2, levels = order)
   cos_sim_matrix.m$Sample = factor(cos_sim_matrix.m$Sample, levels = sample_order)
-  heatmap = ggplot(cos_sim_matrix.m, aes(x = Sample2, y = Sample, 
-                                         fill = Cosine.sim, order = Sample)) + geom_tile(color = "white") + 
-    scale_fill_distiller(palette = "YlGnBu", direction = 1, 
-                         name = "Cosine \nsimilarity", limits = c(0, 1.000001)) + 
-    theme_bw() + theme(axis.text.x = element_text(angle = 90, 
-                                                  hjust = 1)) + labs(x = NULL, y = NULL)
+  heatmap = ggplot(cos_sim_matrix.m, aes(x = Sample2, y = Sample, fill = Cosine.sim, order = Sample)) + 
+    geom_tile(color = "white") +
+    geom_manual +
+    scale_fill_distiller(palette = "YlGnBu", direction = 1, name = "Cosine \nsimilarity", limits = c(0, 1.000001)) + 
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+    labs(x = NULL, y = NULL)
   
   heatmap = plot_grid(sig_dendrogram, heatmap, align = "v", rel_heights = c(0.2, 1), axis = "lr", nrow = 2, scale = c(1,1))
   return(heatmap)
@@ -115,7 +125,7 @@ mut_96_occurrences2 = function(type_context, gr_sizes){
   sample_vector = rep(names(gr_sizes), gr_sizes) %>% factor(levels = names(gr_sizes))
   
   #Count the mutations per type and per sample
-  counts = tibble("categories" = full_context, "sample" = sample_vector) %>% dplyr::filter(!is.na(categories)) %>% dplyr::group_by(categories, sample) %>% dplyr::summarise(count = n())
+  counts = tibble("categories" = full_context, "sample" = sample_vector) %>% dplyr::filter(!is.na(categories)) %>% dplyr::group_by(categories, sample) %>% dplyr::summarise(count = dplyr::n())
   counts = left_join(cats, counts, by = "categories")
   
   #Transform the data into a mutation matrix
@@ -294,7 +304,7 @@ resample_mut_mat = function(mut_mat){
 
 #Function to plot how often each signature was selected.
 plot_fraction_contri = function(contri_boots){
-  samples = str_replace(rownames(contri_boots), "_\\d*", "")
+  samples = str_replace(rownames(contri_boots), "_\\d*$", "")
   contri_boots_l = split(as.data.frame(contri_boots), samples, drop = F)
   nr_na_l = purrr::map(contri_boots_l, function(x) {
     purrr::map_int(x, ~sum(is.na(.)))
