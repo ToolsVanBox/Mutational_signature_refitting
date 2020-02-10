@@ -5,6 +5,7 @@ library(pracma)
 library(vegan)
 library(ggdendro)
 library(cowplot)
+library(ggpubr)
 
 #Slightly modifief from MutationalPatterns to plot contribution of normalized (colSum 1) signatures
 plot_contribution_nonmf = function (contribution, index = c(), coord_flip = FALSE, 
