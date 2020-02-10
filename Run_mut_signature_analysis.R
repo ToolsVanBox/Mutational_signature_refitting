@@ -2,7 +2,7 @@
 #Please copy this script and then change the paths, to the data you wish to analyze
 #You will need to change some settings based on your data / research question.
 #Settings that may need to be changed are indicated in the comments with: CHANGE
-#v0.11.0
+#v0.12.0
 
 # -._    _.--'"`'--._    _.--'"`'--._    _.--'"`'--._    
 # '-:`.'|`|"':-.  '-:`.'|`|"':-.  '-:`.'|`|"':-.  '.` :   
