@@ -2,7 +2,7 @@
 #Please copy this script and then change the paths, to the data you wish to analyze
 #You will need to change some settings based on your data / research question.
 #Settings that may need to be changed are indicated in the comments with: CHANGE
-#v0.10.0
+#v0.11.0
 
 # -._    _.--'"`'--._    _.--'"`'--._    _.--'"`'--._    
 # '-:`.'|`|"':-.  '-:`.'|`|"':-.  '-:`.'|`|"':-.  '.` :   
@@ -131,15 +131,7 @@ if (dupli_sigs){
 }
 # Plot figures of the NMF results -----------------------------------------
 #Similarity of nmf signatures with existing signatures
-sim_matrix = cos_sim_matrix(nmf_res$signatures, signatures)
-clust = dist(t(signatures)) %>% hclust()
-sig_order = colnames(signatures)[clust$order]
-dhc = as.dendrogram(clust)
-ddata = dendro_data(dhc, type = "rectangle")
-sig_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
-    theme_dendro()
-sig_cosim_heat_fig = plot_cosine_heatmap(sim_matrix, cluster_rows = F, col_order = sig_order)
-sig_cosim_heat_fig = plot_grid(sig_dendrogram, sig_cosim_heat_fig, align = "v", rel_heights = c(0.2, 1), axis = "lr", nrow = 2, scale = c(1.062,1))
+sig_cosim_heat_fig = plot_sim_with_signatures(nmf_res$signatures, signatures)
 
 #Contribtution of signatures according to nmf
 pc1 = plot_contribution(nmf_res$contribution, nmf_res$signature, mode = "relative") +
@@ -170,29 +162,11 @@ print(orivsrec_fig)
 dev.off()
 
 # Plot the similarity of the mut_mat with existing signatures -----------------------------
-clust = dist(t(signatures)) %>% hclust()
-sig_order = colnames(signatures)[clust$order]
-dhc = as.dendrogram(clust)
-ddata = dendro_data(dhc, type = "rectangle")
-sig_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
-    theme_dendro()
-cos_sim_samples_signatures = cos_sim_matrix(mut_mat, signatures)
-sig_cosim_heat_fig = plot_cosine_heatmap(cos_sim_samples_signatures, cluster_rows = F, col_order = sig_order)
-sig_cosim_heat_fig = plot_grid(sig_dendrogram, sig_cosim_heat_fig, align = "v", rel_heights = c(0.2, 1), axis = "lr", nrow = 2, scale = c(1.062,1))
-
-clust = dist(t(signatures_serena)) %>% hclust()
-sig_order = colnames(signatures_serena)[clust$order]
-dhc = as.dendrogram(clust)
-ddata = dendro_data(dhc, type = "rectangle")
-sig_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
-    theme_dendro()
-cos_sim_samples_signatures_serena = cos_sim_matrix(mut_mat, signatures_serena)
-serena_sig_cosim_heat_fig = plot_cosine_heatmap(cos_sim_samples_signatures_serena, cluster_rows = F, col_order = sig_order)
-serena_sig_cosim_heat_fig = plot_grid(sig_dendrogram, serena_sig_cosim_heat_fig, align = "v", rel_heights = c(0.2, 1), axis = "lr", nrow = 2, scale = c(1.062,1))
-
+sig_cosim_heat_fig = plot_sim_with_signatures(mut_mat, signatures)
+serena_sig_cosim_heat_fig = plot_sim_with_signatures(mut_mat, signatures_serena)
 inner_cosheat_fig = plot_inner_cosheat(mut_mat)
 
-pdf("similarity_signatures.pdf", useDingbats = F)
+pdf("similarity_signatures.pdf", useDingbats = F, width = 10)
 print(sig_cosim_heat_fig)
 print(serena_sig_cosim_heat_fig)
 print(inner_cosheat_fig)

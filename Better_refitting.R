@@ -95,6 +95,50 @@ plot_inner_cosheat = function(mat, text = T){
   return(heatmap)
 }
 
+plot_sim_with_signatures = function(mut_mat, signatures){
+  cos_sim_matrix = cos_sim_matrix(signatures, signatures)
+  clust = as.dist(1-cos_sim_matrix) %>% hclust()
+  sig_order = colnames(signatures)[clust$order]
+  dhc = as.dendrogram(clust)
+  ddata = dendro_data(dhc, type = "rectangle")
+  sig_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
+    theme_dendro()
+  
+  cos_sim_matrix = cos_sim_matrix(mut_mat, mut_mat)
+  clust = as.dist(1-cos_sim_matrix) %>% hclust()
+  mut_mat_order = colnames(mut_mat)[clust$order]
+  dhc = as.dendrogram(clust)
+  ddata = dendro_data(dhc, type = "rectangle")
+  mut_mat_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
+    theme_dendro() +
+    coord_flip() +
+    scale_y_reverse()
+  
+  cos_sim_samples_signatures = cos_sim_matrix(mut_mat, signatures)
+  
+  cos_sim_matrix.m = cos_sim_samples_signatures %>% 
+    as.data.frame() %>% 
+    rownames_to_column("Sample") %>% 
+    gather(-Sample, key = "Signature", value = "Cosine.sim")
+  
+  cos_sim_matrix.m$Signature = factor(cos_sim_matrix.m$Signature, levels = sig_order)
+  cos_sim_matrix.m$Sample = factor(cos_sim_matrix.m$Sample, levels = mut_mat_order)
+  heatmap = ggplot(cos_sim_matrix.m, aes(x = Signature, y = Sample, fill = Cosine.sim)) + 
+    geom_tile(color = "white") +
+    scale_fill_distiller(palette = "YlGnBu", direction = 1, name = "Cosine \nsimilarity", limits = c(0, 1.000001)) + 
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+    labs(x = NULL, y = NULL)
+  
+  ggarrange(sig_dendrogram, mut_mat_dendrogram, heatmap)
+  #sig_cosim_heat_fig = plot_cosine_heatmap(cos_sim_samples_signatures, row_order = mut_mat_order, col_order = sig_order)
+  fig = plot_grid(sig_dendrogram, heatmap, align = "v", rel_heights = c(0.2, 1), axis = "lr", nrow = 2, scale = c(1.062,1))
+  empty_fig = ggplot() +
+    theme_void()
+  fig = ggarrange(empty_fig, sig_dendrogram, mut_mat_dendrogram, heatmap,
+                  common.legend = T, align = "hv", ncol = 2, nrow = 2, widths = c(1, 3), heights = c(1, 3), legend = "bottom")
+  return(fig)
+}
 
 #Faster mut_matrix function
 C_TRIPLETS = c(
@@ -325,7 +369,7 @@ plot_fraction_contri = function(contri_boots){
     facet_grid(sample ~ .) +
     scale_y_continuous(labels = scales::percent) +
     labs(x = "Signature", y = paste0("Selected (n = ", nr_boots, ")")) +
-    theme(axis.text.x = element_text(angle = 90, size = 18), text = element_text(size=24), strip.text.y = element_text(size = 14))
+    theme(axis.text.x = element_text(angle = 90, size = 12), text = element_text(size=20), strip.text.y = element_text(size = 10))
     })
   return(figs)
 }
@@ -366,7 +410,7 @@ plot_boots_contri = function(contri_boots, mode = c("absolute", "relative")){
     scale_color_discrete(guide = F) +
     labs(x = "Signature", y = ylab_text) +
     theme_classic() +
-    theme(axis.text.x = element_text(angle = 90, size = 18), text = element_text(size=24), strip.text.y = element_text(size = 14))
+    theme(axis.text.x = element_text(angle = 90, size = 12), text = element_text(size=20), strip.text.y = element_text(size = 10))
     })
 
   contri_tb2 = contri_tb %>% 
@@ -381,7 +425,7 @@ plot_boots_contri = function(contri_boots, mode = c("absolute", "relative")){
     scale_fill_discrete(guide = F) +
     labs(x = "Signature", y = ylab_text) +
     theme_classic() +
-    theme(axis.text.x = element_text(angle = 90, size = 18), text = element_text(size=24), strip.text.y = element_text(size = 14))
+    theme(axis.text.x = element_text(angle = 90, size = 12), text = element_text(size=20), strip.text.y = element_text(size = 10))
     })
 
   contri_boots_fig3 = purrr::map(contri_tb_l, function(x) {ggplot(data = x, aes(x = sig, y = contri, fill = sig)) +
@@ -390,7 +434,7 @@ plot_boots_contri = function(contri_boots, mode = c("absolute", "relative")){
     labs(x = "Signature", y = ylab_text) +
     scale_fill_discrete(guide = F) +
     theme_classic() +
-    theme(axis.text.x = element_text(angle = 90, size = 18), text = element_text(size=24), strip.text.y = element_text(size = 14))
+    theme(axis.text.x = element_text(angle = 90, size = 12), text = element_text(size=20), strip.text.y = element_text(size = 10))
     })
   
   
@@ -447,7 +491,7 @@ plot_perm_contri = function(contri_boots, diff_sigs, mode = c("absolute", "relat
     guides(color = guide_legend(override.aes = list(size = 5)), fill = guide_legend(override.aes = list(size = 5))) +
     labs(x = "Sample", y = ylab_text, color = paste0("H0 (permutations n = " , n_boots, ")"), fill = "") +
     theme_classic() +
-    theme(axis.text.x = element_text(angle = 90, size = 18), text = element_text(size=24)) +
+    theme(axis.text.x = element_text(angle = 90, size = 12), text = element_text(size=20)) +
     coord_cartesian(ylim = c(0, max_y))
   
   
@@ -461,7 +505,7 @@ plot_perm_contri = function(contri_boots, diff_sigs, mode = c("absolute", "relat
     scale_color_manual(values = "black") +
     labs(x = "Sample", y = ylab_text, fill = paste0("H0 (permutations n = " , n_boots, ")"), color = "") +
     theme_classic() +
-    theme(axis.text.x = element_text(angle = 90, size = 18), text = element_text(size=24)) +
+    theme(axis.text.x = element_text(angle = 90, size = 12), text = element_text(size=20)) +
     coord_cartesian(ylim = c(0, max_y))
   
   
@@ -522,7 +566,7 @@ plot_sig_contri_cor_sample = function(clean_contri_boots, sample){
     geom_tile(color = "white") +
     scale_fill_distiller(palette = "RdYlBu", direction = -1, name = "Correlation") +
     theme_classic() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1), text = element_text(size=24), panel.border = element_rect(colour = "black", fill=NA, size=1)) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1), text = element_text(size=20), panel.border = element_rect(colour = "black", fill=NA, size=1)) +
     labs(x = NULL, y = NULL, title = sample)
   return(sig_cor_fig)
 }
@@ -567,7 +611,7 @@ plot_nr_signatures_selected = function(contri_boots){
     geom_bar(fill = "darkred") +
     facet_grid(sample ~ .) +
     labs(x = "Number of selected signatures", y= "Frequency") +
-    theme(text = element_text(size=24), strip.text.y = element_text(size = 14))
+    theme(text = element_text(size=20), strip.text.y = element_text(size = 10))
   })
   return(fig)
 }
@@ -599,7 +643,7 @@ plot_sim_decay = function(sims, removed_sigs, max_delta){
     geom_bar(stat = "identity") +
     scale_fill_manual(limits = c("low_delta", "high_delta"), values = c("grey", "red"), guide = F) +
     labs(x = "Removed signatures", y = paste0("Cosine similarity (max delta: ", max_delta, ")")) +
-    theme(axis.text.x = element_text(angle = 90, size = 18), text = element_text(size=24))
+    theme(axis.text.x = element_text(angle = 90, size = 12), text = element_text(size=20))
   return(fig)
 }
 
