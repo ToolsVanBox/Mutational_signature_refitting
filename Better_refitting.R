@@ -66,37 +66,36 @@ plot_inner_cosheat = function(mat, text = T){
   sig_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
     theme_dendro()
   
-  sample_order = order
-  Cosine.sim = NULL
-  Signature = NULL
-  Sample = NULL
-  x = NULL
-  y = NULL
-  xend = NULL
-  yend = NULL
-  
+
   if (text == T){
-    geom_manual = geom_text(aes(label = round(Cosine.sim, 2)), colour = "white")
+    geom_manual = geom_text(aes(label = round(Cosine.sim, 3)), colour = "white", size = 1.5)
   } else{
     geom_manual = geom_blank()
   }
   
-  cos_sim_matrix.m = cos_sim_matrix %>% as.data.frame() %>% rownames_to_column("Sample") %>% gather(-Sample, key = "Sample2", value = "Cosine.sim")
+  cos_sim_matrix.m = cos_sim_matrix %>%
+    as.data.frame() %>%
+    rownames_to_column("Sample") %>%
+    gather(-Sample, key = "Sample2", value = "Cosine.sim")
+  
   cos_sim_matrix.m$Sample2 = factor(cos_sim_matrix.m$Sample2, levels = order)
-  cos_sim_matrix.m$Sample = factor(cos_sim_matrix.m$Sample, levels = sample_order)
-  heatmap = ggplot(cos_sim_matrix.m, aes(x = Sample2, y = Sample, fill = Cosine.sim, order = Sample)) + 
+  cos_sim_matrix.m$Sample = factor(cos_sim_matrix.m$Sample, levels = order)
+  heatmap = ggplot(cos_sim_matrix.m, aes(x = Sample, y = Sample2, fill = Cosine.sim)) + 
     geom_tile(color = "white") +
     geom_manual +
     scale_fill_distiller(palette = "YlGnBu", direction = 1, name = "Cosine \nsimilarity", limits = c(0, 1.000001)) + 
-    theme_bw() + 
+    theme_classic() + 
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
     labs(x = NULL, y = NULL)
   
-  heatmap = plot_grid(sig_dendrogram, heatmap, align = "v", rel_heights = c(0.2, 1), axis = "lr", nrow = 2, scale = c(1,1))
-  return(heatmap)
+  fig = ggarrange(sig_dendrogram, heatmap, align = "v", heights = c(1, 4), nrow = 2, common.legend = T, legend = "right")
+  return(fig)
 }
 
-plot_sim_with_signatures = function(mut_mat, signatures){
+plot_sim_with_signatures = function(mut_mat, signatures, text = T){
+  empty_fig = ggplot() +
+    theme_void()
+  
   cos_sim_matrix = cos_sim_matrix(signatures, signatures)
   clust = as.dist(1-cos_sim_matrix) %>% hclust()
   sig_order = colnames(signatures)[clust$order]
@@ -105,6 +104,7 @@ plot_sim_with_signatures = function(mut_mat, signatures){
   sig_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
     theme_dendro()
   
+  if (ncol(mut_mat) > 1){
   cos_sim_matrix = cos_sim_matrix(mut_mat, mut_mat)
   clust = as.dist(1-cos_sim_matrix) %>% hclust()
   mut_mat_order = colnames(mut_mat)[clust$order]
@@ -114,6 +114,10 @@ plot_sim_with_signatures = function(mut_mat, signatures){
     theme_dendro() +
     coord_flip() +
     scale_y_reverse()
+  } else{
+    mut_mat_dendrogram = empty_fig
+    mut_mat_order = colnames(mut_mat)
+  }
   
   cos_sim_samples_signatures = cos_sim_matrix(mut_mat, signatures)
   
@@ -124,18 +128,22 @@ plot_sim_with_signatures = function(mut_mat, signatures){
   
   cos_sim_matrix.m$Signature = factor(cos_sim_matrix.m$Signature, levels = sig_order)
   cos_sim_matrix.m$Sample = factor(cos_sim_matrix.m$Sample, levels = mut_mat_order)
+  
+  if (text == T){
+    geom_manual = geom_text(aes(label = round(Cosine.sim, 3)), colour = "white", size = 1.5)
+  } else{
+    geom_manual = geom_blank()
+  }
+  
+  
   heatmap = ggplot(cos_sim_matrix.m, aes(x = Signature, y = Sample, fill = Cosine.sim)) + 
     geom_tile(color = "white") +
-    scale_fill_distiller(palette = "YlGnBu", direction = 1, name = "Cosine \nsimilarity", limits = c(0, 1.000001)) + 
-    theme_bw() + 
+    scale_fill_distiller(palette = "YlGnBu", direction = 1, name = "Cosine \nsimilarity", limits = c(0, 1.000001)) +
+    geom_manual +
+    theme_classic() + 
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
     labs(x = NULL, y = NULL)
   
-  ggarrange(sig_dendrogram, mut_mat_dendrogram, heatmap)
-  #sig_cosim_heat_fig = plot_cosine_heatmap(cos_sim_samples_signatures, row_order = mut_mat_order, col_order = sig_order)
-  fig = plot_grid(sig_dendrogram, heatmap, align = "v", rel_heights = c(0.2, 1), axis = "lr", nrow = 2, scale = c(1.062,1))
-  empty_fig = ggplot() +
-    theme_void()
   fig = ggarrange(empty_fig, sig_dendrogram, mut_mat_dendrogram, heatmap,
                   common.legend = T, align = "hv", ncol = 2, nrow = 2, widths = c(1, 3), heights = c(1, 3), legend = "bottom")
   return(fig)
