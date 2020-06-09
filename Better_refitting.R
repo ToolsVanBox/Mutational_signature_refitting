@@ -32,7 +32,7 @@ plot_contribution_nonmf = function (contribution, index = c(), coord_flip = FALS
       theme(panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank())
   }
   else {
-    m_contribution =    m_contribution = contribution %>% 
+    m_contribution = contribution %>% 
       as.data.frame() %>% 
       rownames_to_column("Signature") %>% 
       tidyr::gather(key = "Sample", value = "Contribution", -Signature)
@@ -52,14 +52,33 @@ plot_contribution_nonmf = function (contribution, index = c(), coord_flip = FALS
   return(plot)
 }
 
+
+create_cluster_dendro = function(mat, method = "complete", type = c("column", "rows")){
+  type = match.arg(type)
+  
+  clust = cluster_signatures(mat, method)
+  order = colnames(mat)[clust$order]
+  dhc = as.dendrogram(clust)
+  ddata = dendro_data(dhc, type = "rectangle")
+  dendro = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
+    theme_dendro()
+  
+  if (type == "rows"){
+    dendro = dendro +
+      coord_flip() +
+      scale_y_reverse()
+  }
+  
+  return(list("dendro" = dendro, "order" = order))
+}
+
 #Function to plot the cosine similarities between samples or between signatures themselves.
-plot_inner_cosheat = function(mat, text = T){
+plot_inner_cosheat = function(mat, text = T, axis_size = NA){
   cos_sim_matrix = cos_sim_matrix(mat, mat)
   
   clust = as.dist(1-cos_sim_matrix) %>% hclust()
   #clust = dist(t(mat)) %>% hclust()
   order = colnames(mat)[clust$order]
-  
   
   dhc = as.dendrogram(clust)
   ddata = dendro_data(dhc, type = "rectangle")
@@ -71,6 +90,13 @@ plot_inner_cosheat = function(mat, text = T){
     geom_manual = geom_text(aes(label = round(Cosine.sim, 3)), colour = "white", size = 1.5)
   } else{
     geom_manual = geom_blank()
+  }
+  
+  if (!is.na(axis_size)){
+    theme_size = theme(axis.text.x = element_text(angle = 90, hjust = 1, size = axis_size),
+                       axis.text.y = element_text(size = axis_size))
+  } else{
+    theme_size = theme(axis.text.x = element_text(angle = 90, hjust = 1))
   }
   
   cos_sim_matrix.m = cos_sim_matrix %>%
@@ -85,40 +111,27 @@ plot_inner_cosheat = function(mat, text = T){
     geom_manual +
     scale_fill_distiller(palette = "YlGnBu", direction = 1, name = "Cosine \nsimilarity", limits = c(0, 1.000001)) + 
     theme_classic() + 
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+    theme_size + 
     labs(x = NULL, y = NULL)
   
   fig = ggarrange(sig_dendrogram, heatmap, align = "v", heights = c(1, 4), nrow = 2, common.legend = T, legend = "right")
   return(fig)
 }
 
-plot_sim_with_signatures = function(mut_mat, signatures, text = T){
+plot_sim_with_signatures = function(mut_mat, signatures, text = T, axis_size = NA){
   empty_fig = ggplot() +
     theme_void()
   
-  cos_sim_matrix = cos_sim_matrix(signatures, signatures)
-  clust = as.dist(1-cos_sim_matrix) %>% hclust()
-  sig_order = colnames(signatures)[clust$order]
-  dhc = as.dendrogram(clust)
-  ddata = dendro_data(dhc, type = "rectangle")
-  sig_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
-    theme_dendro()
-  
+  #Cluster signatures and mut_mat samples
+  sig_dendro = create_cluster_dendro(signatures)
+
   if (ncol(mut_mat) > 1){
-  cos_sim_matrix = cos_sim_matrix(mut_mat, mut_mat)
-  clust = as.dist(1-cos_sim_matrix) %>% hclust()
-  mut_mat_order = colnames(mut_mat)[clust$order]
-  dhc = as.dendrogram(clust)
-  ddata = dendro_data(dhc, type = "rectangle")
-  mut_mat_dendrogram = ggplot(segment(ddata)) + geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
-    theme_dendro() +
-    coord_flip() +
-    scale_y_reverse()
+    mat_dendro = create_cluster_dendro(mut_mat, type = "row")
   } else{
-    mut_mat_dendrogram = empty_fig
-    mut_mat_order = colnames(mut_mat)
+    mat_dendro = list("dendro" = empty_fig, "order" = colnames(mut_mat))
   }
   
+  #Calculate similarity between signatures and mut_matrix
   cos_sim_samples_signatures = cos_sim_matrix(mut_mat, signatures)
   
   cos_sim_matrix.m = cos_sim_samples_signatures %>% 
@@ -126,28 +139,43 @@ plot_sim_with_signatures = function(mut_mat, signatures, text = T){
     rownames_to_column("Sample") %>% 
     gather(-Sample, key = "Signature", value = "Cosine.sim")
   
-  cos_sim_matrix.m$Signature = factor(cos_sim_matrix.m$Signature, levels = sig_order)
-  cos_sim_matrix.m$Sample = factor(cos_sim_matrix.m$Sample, levels = mut_mat_order)
+  cos_sim_matrix.m$Signature = factor(cos_sim_matrix.m$Signature, levels = sig_dendro$order)
+  cos_sim_matrix.m$Sample = factor(cos_sim_matrix.m$Sample, levels = mat_dendro$order)
   
+  #Add cosine sim values in heatmap
   if (text == T){
     geom_manual = geom_text(aes(label = round(Cosine.sim, 3)), colour = "white", size = 1.5)
   } else{
     geom_manual = geom_blank()
   }
   
+  #Set axis_size
+  if (!is.na(axis_size)){
+    theme_size = theme(axis.text.x = element_text(angle = 90, hjust = 1, size = axis_size),
+                       axis.text.y = element_text(size = axis_size))
+  } else{
+    theme_size = theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  }
   
+  #Plot heatmap
   heatmap = ggplot(cos_sim_matrix.m, aes(x = Signature, y = Sample, fill = Cosine.sim)) + 
-    geom_tile(color = "white") +
+    geom_raster() +
     scale_fill_distiller(palette = "YlGnBu", direction = 1, name = "Cosine \nsimilarity", limits = c(0, 1.000001)) +
     geom_manual +
     theme_classic() + 
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+    theme_size + 
     labs(x = NULL, y = NULL)
   
-  fig = ggarrange(empty_fig, sig_dendrogram, mut_mat_dendrogram, heatmap,
+  
+  #Arrange dendrographs together with heatmap
+  fig = ggarrange(empty_fig, sig_dendro$dendro, mat_dendro$dendro, heatmap,
                   common.legend = T, align = "hv", ncol = 2, nrow = 2, widths = c(1, 3), heights = c(1, 3), legend = "bottom")
   return(fig)
 }
+
+
+
+
 
 #Faster mut_matrix function
 C_TRIPLETS = c(
